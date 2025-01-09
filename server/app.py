@@ -14,13 +14,53 @@ migrate = Migrate(app, db)
 
 db.init_app(app)
 
-@app.route('/messages')
+@app.route('/messages', methods=['GET', 'POST'])
 def messages():
-    return ''
+    messages = [message.to_dict() for message in Message.query.all()]
 
-@app.route('/messages/<int:id>')
+    if request.method == 'GET':
+        return make_response(messages, 200)
+    elif request.method == 'POST':
+        new_message = Message(
+            username=request.get_json().get("username"),
+            body=request.get_json().get("body"),
+            created_at=request.get_json().get("created_at"),
+            updated_at=request.get_json().get("updated_at")
+        )
+
+        db.session.add(new_message)
+        db.session.commit()
+
+        message_dict = new_message.to_dict()
+
+        return make_response(message_dict, 201)
+
+
+@app.route('/messages/<int:id>', methods=['DELETE', 'PATCH'])
 def messages_by_id(id):
-    return ''
+    message = Message.query.filter_by(id=id).first()
+
+    if request.method == 'DELETE':
+        db.session.delete(message)
+        db.session.commit()
+
+        res = {
+            "delete_successful": True,
+            "message": "Message deleted."
+        }
+        return make_response(res, 200)
+    elif request.method == 'PATCH':
+        data = request.get_json()
+
+        for attribute in request.get_json():
+            setattr(message, attribute, request.get_json().get(attribute))
+
+        db.session.add(message)
+        db.session.commit()
+
+        message_dict = message.to_dict()
+
+        return make_response(message_dict, 200)
 
 if __name__ == '__main__':
     app.run(port=5555)
